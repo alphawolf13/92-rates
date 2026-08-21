@@ -1,0 +1,52 @@
+name: Update mortgage rates
+
+# Refreshes rates.json every day from the Freddie Mac weekly average
+# (published Thursdays) via the St. Louis Fed FRED series. The daily commit
+# also keeps this scheduled workflow from being auto-disabled for inactivity.
+
+on:
+  schedule:
+    - cron: '0 15 * * *'   # 15:00 UTC daily (~8am AZ)
+  workflow_dispatch:        # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Freddie Mac rates and write rates.json
+        run: |
+          set -euo pipefail
+          get() {
+            curl -sfL --retry 3 "https://fred.stlouisfed.org/graph/fredgraph.csv?id=$1" \
+              | awk -F, '/^[0-9]{4}-/ && $2!="." && $2!="" {v=$2; d=$1} END{print v"|"d}'
+          }
+          O30=$(get MORTGAGE30US); V30=${O30%%|*}; D30=${O30##*|}
+          O15=$(get MORTGAGE15US); V15=${O15%%|*}
+          if ! echo "$V30" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
+            echo "Unexpected 30yr value: '$V30' — leaving rates.json unchanged"; exit 1
+          fi
+          ASOF=$(date -d "$D30" +"%b %-d, %Y")
+          cat > rates.json <<EOF
+          {
+            "rate30": $V30,
+            "rate15": $V15,
+            "asOf": "$ASOF",
+            "asOfISO": "$D30",
+            "source": "Freddie Mac PMMS via FRED",
+            "updated": "$(date -u +%FT%TZ)"
+          }
+          EOF
+          echo "Wrote:"; cat rates.json
+
+      - name: Commit if changed
+        run: |
+          git config user.name "rates-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rates.json
+          git diff --staged --quiet || git commit -m "Update rates ($(date -u +%F))"
+          git push
