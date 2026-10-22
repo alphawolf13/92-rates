@@ -1,8 +1,8 @@
 {
-  "rate30": 7.40,
-  "rate15": 6.71,
-  "asOf": "Oct 15, 2026",
-  "asOfISO": "2026-10-15",
+  "rate30": 7.32,
+  "rate15": 6.68,
+  "asOf": "Oct 22, 2026",
+  "asOfISO": "2026-10-22",
   "source": "Freddie Mac PMMS via FRED",
-  "updated": "2026-10-20T18:47:58Z"
+  "updated": "2026-10-22T18:54:42Z"
 }
